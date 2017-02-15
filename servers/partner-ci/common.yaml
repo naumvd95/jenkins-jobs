@@ -739,6 +739,22 @@
             recursive: true
           wipe-workspace: '{obj:scm_wipe_workspace}'
 
+- scm:
+    name: generic-scm
+    scm:
+      - git:
+          url: 'https://review.openstack.org/openstack/{gerrit_repo}'
+          branches:
+            - '{gerrit_branch}'
+          basedir: '{basedir}'
+          choosing-strategy: gerrit
+          skip-tag: true
+          submodule:
+            disable: '{obj:scm_submodule_disabled}'
+            tracking: true
+            recursive: true
+          wipe-workspace: '{obj:scm_wipe_workspace}'
+
 - trigger:
     name: test-gerrit-trigger
     triggers:
