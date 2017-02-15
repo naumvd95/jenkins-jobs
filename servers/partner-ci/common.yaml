@@ -685,6 +685,9 @@
           venv_path="$HOME/${FUEL_RELEASE:?}-venv" >> specific.properties
           echo "VENV_PATH=${VENV_PATH:-$venv_path}"  >> specific.properties
 
+      - inject:
+          properties-file: specific.properties
+
 - builder:
     name: ui-condition
     builders:
