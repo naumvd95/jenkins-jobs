@@ -1,0 +1,429 @@
+---
+- parameter:
+    name: plugin-specific-parameters
+    parameters:
+      - text:
+          name: SPECIFIC_PROPS
+          default: |
+            ADMIN_NODE_MEMORY=3968;
+            SLAVE_NODE_MEMORY=3968;
+
+- project:
+    name: 'predefined_parameters'
+    fuel_release: '10.0'
+    fuel_release_checker: '10.0'
+    plugin_version: '2.5.2'
+    plugin-name: 'zabbix'
+    build-name: '{fuel_release}.{plugin-name}.build'
+    shellcheck-name: '{fuel_release}.{plugin-name}.shellcheck'
+    smoke-name: '{fuel_release}.{plugin-name}.smoke'
+    bvt-name: '{fuel_release}.{plugin-name}.bvt'
+    regression-name: '{fuel_release}.{plugin-name}.regression'
+    nightly-name: '{fuel_release}.{plugin-name}.nightly'
+    custom-name: '{fuel_release}.{plugin-name}.custom'
+    reporter-name: '{fuel_release}.{plugin-name}.reporter'
+    smoke-test-name: 'deploy_zabbix_monitoring_ha'
+    bvt-test-name: 'zabbix_bvt'
+    regression-test-name: 'zabbix_regression'
+    pkg_job_name: '{fuel_release}.{plugin-name}.build'
+    pkg_job_build_number: ''
+    nightly_timer: 'H 22 * * *'
+    regression_timer: 'H 18 * * *'
+    nightly_disabled: true
+    regression_disabled: true
+    force_erase: true
+    force_reuse: false
+    recreate_venv: true
+    ws_norevert: false
+    nfs_clean: false
+    kvm_use: false
+    update_master: true
+    enable_proposed: true
+    debug: true
+    build_debug: true
+    publish_results: true
+    multijob_build_pkg: true
+    testjob_build_pkg: false
+    fuel_qa_refs: ''
+    iso_file: ''
+    iso_storage: '/storage/downloads'
+    snapshots_id: ''
+    gerrit_repo: 'fuel-plugin-external-zabbix'
+    gerrit_branch: 'master'
+    email_to: 'rkhozinov@mirantis.com'
+    released_plugin_path: '/storage/zabbix/released/fuel-plugin-external-zabbix-3.1-3.1.0-1.noarch.rpm'
+    scm_submodule_disabled: false
+    scm_wipe_workspace: true
+    skip_vote_successfull: false
+    skip_vote_failed: false
+
+    testrail_project: "Zabbix plugin"
+    testrail_suite: "[{fuel_release}][PCE] ZABBIX plugin v{plugin_version}"
+    testrail_suite_desc: "Suite description"
+    testrail_milestone: "{plugin_version}"
+    testrail_plan: "$TREP_TESTRAIL_SUITE build#${{PKG_JOB_BUILD_NUMBER}} snapshot#${{SNAPSHOTS_ID}}"
+    testrail_plan_desc: "Test plan description"
+    testrail_run: "$TREP_TESTRAIL_SUITE"
+    testrail_run_desc: "Test run description"
+    testrail_item_case: "$TEST_GROUP"
+    trep_results_source: "xunit"
+    trep_debug_level: "DEBUG"
+
+    testgroup_parameter_type: string
+    testgroup_value_type: default
+    testgroup_value: '{testgroup}'
+
+    testgroup:
+      - check_zabbix_api
+      - check_zabbix_dashboard_configuration
+      - deploy_zabbix_ha_offline
+      - deploy_zabbix_monitoring_ha
+      - install_zabbix
+      - test_dependant_plugins
+      - test_host_failover
+      - test_trigger_api
+      - test_triggers
+      - test_zabbix_deployment
+      - uninstall_deployed_zabbix
+      - uninstall_zabbix_monitoring
+
+    jobs:
+      - '{build-name}':
+          scm_submodule_disabled: true
+          scm_wipe_workspace: true
+
+      - '{nightly-name}':
+          multijob_build_pkg: true
+
+      - '{custom-name}.qa':
+          publish_results: false
+
+      - '{custom-name}.dev':
+          publish_results: false
+          testgroup_parameter_type: choice
+          testgroup_value_type: choices
+          testgroup_value: '{obj:testgroup}'
+
+      - '{fuel_release}.{plugin-name}.{testgroup}'
+
+      - '{smoke-name}':
+          publish_results: false
+          multijob_build_pkg: false
+
+      - '{fuel_release}.{plugin-name}.smoke.test'
+
+      - '{bvt-name}':
+          publish_results: false
+          multijob_build_pkg: true
+
+      - '{fuel_release}.{plugin-name}.bvt.test'
+
+
+# parameters for smoke, bvt and nightly multijobs
+- runner-parameters: &runner-parameters
+    name: 'runner-parameters'
+    parameters:
+      - bool:
+          name: MJ_BUILD_PKG
+          default: '{multijob_build_pkg}'
+          description: "Triggers build of pkg of $PKG_JOB_NAME before run of tests"
+      - common-parameters:
+          debug:                 '{debug}'
+          enable_proposed:       '{enable_proposed}'
+          env_prefix:            '{fuel_release}.{plugin-name}'
+          force_erase:           '{force_erase}'
+          force_reuse:           '{force_reuse}'
+          fuel_qa_refs:          '{fuel_qa_refs}'
+          fuel_release_checker:  '{fuel_release_checker}'
+          gerrit_branch:         '{gerrit_branch}'
+          iso_file:              '{iso_file}'
+          iso_storage:           '{iso_storage}'
+          kvm_use:               '{kvm_use}'
+          nfs_clean:             '{nfs_clean}'
+          pkg_job_name:          '{pkg_job_name}'
+          pkg_job_build_number:  '{pkg_job_build_number}'
+          plugin_version:        '{plugin_version}'
+          publish_results:       '{publish_results}'
+          recreate_venv:         '{recreate_venv}'
+          skip_vote_failed:      '{skip_vote_failed}'
+          skip_vote_successfull: '{skip_vote_successfull}'
+          snapshots_id:          '{snapshots_id}'
+          testrail_plan:         '{testrail_plan}'
+          testrail_plan_desc:    '{testrail_plan_desc}'
+          testrail_suite:        '{testrail_suite}'
+          testrail_suite_desc:   '{testrail_suite_desc}'
+          update_master:         '{update_master}'
+          ws_norevert:           '{ws_norevert}'
+      - plugin-specific-parameters
+
+# parameters for jobs created per test-group and custom test job
+- test-parameters: &test-parameters
+    name: 'test-parameters'
+    parameters:
+      - label:
+          name: node
+          default: 'zabbix'
+          description: "The node on which to run the job"
+      - bool:
+          name: BUILD_PKG
+          default: '{testjob_build_pkg}'
+          description: "Triggers build of pkg from $PKG_JOB_NAME (only for custom)"
+      - '{testgroup_parameter_type}':
+          name: TEST_GROUP
+          '{testgroup_value_type}': '{obj:testgroup_value}'
+          description: "test-group name"
+      - string:
+          name: TEST_GROUP_CONFIG
+          default: '${{TEST_GROUP}}'
+      - common-parameters:
+          debug:                 '{debug}'
+          enable_proposed:       '{enable_proposed}'
+          env_prefix:            '{fuel_release}.{plugin-name}'
+          force_erase:           '{force_erase}'
+          force_reuse:           '{force_reuse}'
+          fuel_qa_refs:          '{fuel_qa_refs}'
+          fuel_release_checker:  '{fuel_release_checker}'
+          gerrit_branch:         '{gerrit_branch}'
+          iso_file:              '{iso_file}'
+          iso_storage:           '{iso_storage}'
+          kvm_use:               '{kvm_use}'
+          nfs_clean:             '{nfs_clean}'
+          pkg_job_name:          '{pkg_job_name}'
+          pkg_job_build_number:  '{pkg_job_build_number}'
+          plugin_version:        '{plugin_version}'
+          publish_results:       '{publish_results}'
+          recreate_venv:         '{recreate_venv}'
+          skip_vote_failed:      '{skip_vote_failed}'
+          skip_vote_successfull: '{skip_vote_successfull}'
+          snapshots_id:          '{snapshots_id}'
+          testrail_plan:         '{testrail_plan}'
+          testrail_plan_desc:    '{testrail_plan_desc}'
+          testrail_suite:        '{testrail_suite}'
+          testrail_suite_desc:   '{testrail_suite_desc}'
+          update_master:         '{update_master}'
+          ws_norevert:           '{ws_norevert}'
+      - plugin-specific-parameters
+
+- defaults:
+    name: global
+    disabled: false
+    node: zabbix
+    <<: *test-parameters
+    scm:
+      - common-scm:
+          scm_submodule_disabled: '{scm_submodule_disabled}'
+          scm_wipe_workspace: '{scm_wipe_workspace}'
+          gerrit_repo: '{gerrit_repo}'
+          skip_vote_successfull: '{skip_vote_successfull}'
+          skip_vote_failed: '{skip_vote_failed}'
+    wrappers:
+      - test-wrapper
+    properties:
+      - test-property
+    builders:
+      - get-refs
+      - get-props
+      - get-ubuntu-mirrors
+      - conditional-step:
+           condition-kind: shell
+           condition-command: |
+            [ "${{BUILD_PKG}}" == "true"       ]
+           steps:
+             - trigger-builds:
+                 - project: ${{PKG_JOB_NAME}}
+                   current-parameters: false
+                   git-revision: false
+                   block: true
+      - conditional-step:
+          condition-kind: shell
+          condition-command: |
+            [ ! -z ${{PKG_JOB_NAME}}                  ] && \
+            [   -z ${{PKG_JOB_BUILD_NUMBER}}          ] && \
+            [   -z ${{ZABBIX_MONITORING_PLUGIN_PATH}} ]
+          steps:
+            - copyartifact:
+                project: ${{PKG_JOB_NAME}}
+                which-build: last-successful
+      - conditional-step:
+          condition-kind: shell
+          condition-command: |
+            [ ! -z ${{PKG_JOB_NAME}}                  ] && \
+            [ ! -z ${{PKG_JOB_BUILD_NUMBER}}          ] && \
+            [   -z ${{ZABBIX_MONITORING_PLUGIN_PATH}} ]
+          steps:
+            - copyartifact:
+                project: ${{PKG_JOB_NAME}}
+                which-build: specific-build
+                build-number: ${{PKG_JOB_BUILD_NUMBER}}
+      - shell:
+          !include-raw-escape: ../builders/common.prepare.sh
+      - shell:
+          !include-raw-escape: ../builders/zabbix.test.sh
+    publishers:
+      - runner-publisher:
+          properties_name: properties
+          email_to: '{email_to}'
+      - test-publisher:
+          reporter_name: '{reporter-name}'
+
+- job-template:
+    name: '{build-name}'
+    node: 'runner'
+    concurrent: true
+    disabled: false
+    triggers:
+      - draft-gerrit-trigger:
+          gerrit_repo: '{gerrit_repo}'
+          gerrit_branch: '{gerrit_branch}'
+          skip_vote_successfull: '{skip_vote_successfull}'
+          skip_vote_failed: '{skip_vote_failed}'
+    scm:
+      - generic-scm:
+          gerrit_repo: 'fuel-plugin-zabbix-monitoring-emc'
+          gerrit_branch: '$ZBX_EMC_BRANCH'
+          basedir: 'fuel-plugin-zabbix-monitoring-emc'
+
+#     - git:
+#         url: 'http://git.openstack.org/openstack/fuel-plugin-zabbix-monitoring-emc'
+#         basedir: zbx-emc
+#         branches:
+#            - $ZBX_EMC_BRANCH
+#         wipe-workspace: true
+#         choosing-strategy: gerrit
+#         skip-tag: true
+
+#     - git:
+#         url: 'http://git.openstack.org/openstack/fuel-plugin-zabbix-monitoring-extreme-networks'
+#         basedir: zbx-net
+#         branches:
+#           - $ZBX_NET_BRANCH
+#         wipe-workspace: true
+#         choosing-strategy: gerrit
+#         skip-tag: true
+
+#     - git:
+#         url: 'http://git.openstack.org/openstack/fuel-plugin-zabbix-snmptrapd'
+#         basedir: zbx-monitoring-snmp
+#         branches:
+#           - $ZBX_SNMP_BRANCH
+#         wipe-workspace: true
+#         choosing-strategy: gerrit
+#         skip-tag: true
+#     - git:
+#         url: 'http://git.openstack.org/openstack/fuel-plugin-external-zabbix'
+#         basedir: zbx-external
+#         branches:
+#           - $ZBX_EXT_BRANCH
+#         wipe-workspace: true
+#         choosing-strategy: gerrit
+#         skip-tag: true
+    wrapper:
+      - runner-wrapper
+    parameters:
+      - string:
+          name: GERRIT_BRANCH
+          default: 'origin/{gerrit_branch}'
+      - string:
+          name: GERRIT_REFSPEC
+          default: 'refs/heads/{gerrit_branch}'
+      - string:
+          name: PUPPETLINT_PATH
+          default: './deployment_scripts/puppet/manifests'
+      - string:
+          name: PUPPETLINT_IGNORE
+          default: 'l2.pp'
+      - bool:
+          name: DEBUG
+          default: '{build_debug}'
+    properties:
+      - test-property
+    wrappers:
+      - ansicolor:
+          colormap: xterm
+    builders:
+      - shell:
+          !include-raw-escape: ../builders/build-plugin-zabbix.sh
+      - shell:
+          !include-raw-escape: ../builders/rpm-check.sh
+    publishers:
+      - pce-build-publisher:
+          email_to: '{email_to}'
+
+- job-template:
+    name: '{fuel_release}.{plugin-name}.{testgroup}'
+    description: 'The test "{testgroup}" for {fuel_release}.{plugin-name}.{plugin_version}'
+    concurrent: true
+
+- job-template:
+    name: '{fuel_release}.{plugin-name}.smoke.test'
+    description: 'The Smoke test for {fuel_release}.{plugin-name}.{plugin_version}'
+    concurrent: true
+
+- job-template:
+    name: '{custom-name}.qa'
+    description: 'The custom test for {fuel_release}.{plugin-name}.{plugin_version}'
+    concurrent: true
+
+- job-template:
+    name: '{custom-name}.dev'
+    description: 'The custom test for {fuel_release}.{plugin-name}.{plugin_version}'
+    concurrent: true
+
+- job-template:
+    name: '{smoke-name}'
+    disabled: false
+    description: 'The Smoke test for {fuel_release}.{plugin-name}.{plugin_version}'
+    concurrent: true
+    quiet-period: 5
+    project-type: multijob
+    node: runner
+    <<: *runner-parameters
+    triggers:
+      - draft-gerrit-trigger:
+          gerrit_repo: '{gerrit_repo}'
+          gerrit_branch: '{gerrit_branch}'
+          skip_vote_successfull: '{skip_vote_successfull}'
+          skip_vote_failed: '{skip_vote_failed}'
+    properties:
+      - runner-property:
+          build-name: '{build-name}'
+    wrappers:
+      - runner-wrapper
+    scm: []
+    builders:
+      - runner-condition
+      - multijob:
+          name: 'The smoke test for {fuel_release}.{plugin-name}.{plugin_version}'
+          condition: COMPLETED
+          projects:
+            - name: '{fuel_release}.{plugin-name}.smoke.test'
+              current-parameters: true
+              property-file: build_number
+              predefined-parameters: |
+                TEST_GROUP={smoke-test-name}
+              kill-phase-on: NEVER
+    publishers:
+      - runner-publisher:
+          properties_name: smoke.properties
+          email_to: '{email_to}'
+
+- job-template:
+    name: '{nightly-name}'
+    project-type: multijob
+    disabled: '{obj:nightly_disabled}'
+    node: runner
+    <<: *runner-parameters
+    scm: []
+    triggers:
+      - timed: '{nightly_timer}'
+    properties:
+      - runner-property:
+          build-name: '{build-name}'
+    wrappers:
+      - runner-wrapper
+    publishers:
+      - runner-publisher:
+          properties_name: nightly.properties
+          email_to: '{email_to}'
+    builders:
+      !include: zabbix-nigtly.yaml
