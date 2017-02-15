@@ -294,6 +294,34 @@
           description-for-failed: '\1'
 
 - publisher:
+    name: generic-build-publisher
+    publishers:
+      - postbuildscript:
+          script-only-if-succeeded: False
+          builders:
+            - shell: |
+                #!/bin/bash
+                plugin_version=$(grep '^version' metadata.yaml | cut -d ' ' -f2)
+                version=$(echo PLUGIN_VERSION=${{plugin_version}} | tr -d "'")
+                echo $version > {plugin_name}.plugin_version
+                env > {plugin_name}.properties
+                echo $version >> {plugin_name}.properties
+      - archive:
+          artifacts: '*.rpm'
+          allow-empty: false
+      - archive:
+          artifacts: '*.properties'
+          allow-empty: false
+      - archive:
+          artifacts: '{plugin_name}.plugin_version'
+          allow-empty: false
+      - email:
+          recipients: '{email_to}'
+      - description-setter:
+          regexp-for-failed: '"error":(.*) \1 "AssertionError":(.*) \2'
+          description-for-failed: '\1 \2'
+
+- publisher:
     name: pce-build-publisher
     publishers:
       - postbuildscript:
@@ -502,6 +530,7 @@
             git_url=$(git config --get remote.origin.url)
             for ref in ${FUEL_QA_REFS:?}; do cherrypick $git_url $ref; done
           fi
+
 - builder:
     name: 10-get-vcenter-refs
     builders:
@@ -518,7 +547,6 @@
             git_url=$(git config --get remote.origin.url)
             for ref in ${FUEL_QA_REFS:?}; do cherrypick $git_url $ref; done
           fi
-
 
 - builder:
     name: 20-get-props
@@ -910,8 +938,6 @@
            unstable: true
            notbuilt: true
 
-# build and smoke should trigger on patchset event
-
 - trigger:
     name: draft-test-gerrit-trigger
     triggers:
@@ -927,8 +953,6 @@
             - patchset-created-event:
                 exclude-trivial-rebase: false
                 exclude-no-code-change: true
-
-# bvt should trigger on merge event
 
 - trigger:
     name: merge-gerrit-trigger
@@ -985,8 +1009,6 @@
                 - compare-type: 'ANT'
                   pattern: 'spec/**'
 
-# smoke should trigger on draft event
-
 - trigger:
     name: draft-gerrit-trigger
     triggers:
@@ -1002,8 +1024,6 @@
             - patchset-created-event:
                 exclude-trivial-rebase: false
                 exclude-no-code-change: true
-
-# doc checks should trigger on patchset event
 
 - trigger:
     name: draft-doc-trigger
@@ -1021,8 +1041,6 @@
                 exclude-trivial-rebase: false
                 exclude-no-code-change: true
 
-# doc checks and update should trigger on merge event
-
 - trigger:
     name: merge-doc-trigger
     triggers:
@@ -1036,8 +1054,6 @@
                 comment-contains-value: 'recheck'
             - change-merged-event
 
-# properties for smoke, bvt and nightly multijobs
-
 - wrapper:
     name: runner-wrapper
     wrappers:
@@ -1048,8 +1064,6 @@
           fail: true
           type: no-activity
           write-description: "Runner-timeout is exceeded"
-
-# properties for smoke, bvt and nightly multijobs
 
 - wrapper:
     name: test-wrapper
@@ -1097,8 +1111,6 @@
             - '{build-name}'
           block-level: 'GLOBAL'
           queue-scanning: 'BUILDABLE'
-
-# properties for test jobs
 
 - property:
     name: test-property
